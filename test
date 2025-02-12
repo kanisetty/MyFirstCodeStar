@@ -11,3 +11,39 @@ for node in $nodes; do
   instance_type=$(kubectl get node $node -o jsonpath='{.metadata.labels.beta\.kubernetes\.io/instance-type}')
   echo "$node - $instance_type"
 done
+-----------------------------
+
+#!/bin/bash
+
+# Check if kubectl is installed
+if ! command -v kubectl &> /dev/null
+then
+    echo "kubectl could not be found, please install it."
+    exit
+fi
+
+# Check if jq is installed
+if ! command -v jq &> /dev/null
+then
+    echo "jq could not be found, please install it."
+    exit
+fi
+
+# Get all nodes
+nodes=$(kubectl get nodes -o json)
+
+# Loop through each node and extract information
+echo "Node Name, Instance Type, Volumes"
+for row in $(echo "${nodes}" | jq -r '.items[] | @base64'); do
+    _jq() {
+        echo ${row} | base64 --decode | jq -r ${1}
+    }
+
+    node_name=$(_jq '.metadata.name')
+    instance_type=$(_jq '.metadata.labels["beta.kubernetes.io/instance-type"]')
+
+    # Get the volumes attached to the node
+    volumes=$(kubectl get node $node_name -o json | jq -r '.status.volumesAttached[]?.name' | tr '\n' ',' | sed 's/,$//')
+
+    echo "$node_name, $instance_type, $volumes"
+done
