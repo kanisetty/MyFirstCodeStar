@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Get the list of nodes
+nodes=$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}')
+
+echo "Node Name - Instance Type"
+echo "-------------------------"
+
+# Loop through each node and get the instance type
+for node in $nodes; do
+  instance_type=$(kubectl get node $node -o jsonpath='{.metadata.labels.beta\.kubernetes\.io/instance-type}')
+  echo "$node - $instance_type"
+done
