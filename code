@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Set the Terraform directory
+TERRAFORM_DIR="/path/to/your/terraform/directory"
+
+# Change to the Terraform directory
+cd "$TERRAFORM_DIR"
+
+# Initialize Terraform if not already initialized
+terraform init -input=false
+
+# Refresh the Terraform state to detect any changes
+terraform refresh -input=false
+
+# Get the list of resources managed by Terraform
+terraform state list > current_state.txt
+
+# Get the list of resources in the actual infrastructure
+terraform plan -out=plan.out -detailed-exitcode || true
+
+# Check if there are any changes detected by Terraform
+terraform show -json plan.out | jq '.resource_changes[] | select(.change.actions == ["create"]) | .address' | sed 's/"//g' > to_import.txt
+
+# Import resources that are not in the current state
+while read -r resource; do
+  echo "Importing resource: $resource"
+  terraform import "$resource" "$(terraform state show -json "$resource" | jq -r .attributes.id)"
+done < to_import.txt
+
+# Clean up
+rm current_state.txt to_import.txt plan.out
+
+echo "Import complete."
