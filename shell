@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Variables
+PROMETHEUS_URL="http://localhost:9090"  # Change this to your Prometheus server URL
+QUERY="up"                              # Change this to your Prometheus query
+OUTPUT_FILE="query_result.json"         # Output file to save the query result
+
+# Function to export Prometheus query result
+export_query_result() {
+  echo "Exporting Prometheus query result..."
+  curl -G "${PROMETHEUS_URL}/api/v1/query" --data-urlencode "query=${QUERY}" -o "${OUTPUT_FILE}"
+  
+  if [[ $? -eq 0 ]]; then
+    echo "Query result saved to ${OUTPUT_FILE}"
+  else
+    echo "Failed to export query result"
+    exit 1
+  fi
+}
+
+# Execute the function
+export_query_result
