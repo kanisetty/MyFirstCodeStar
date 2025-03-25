@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Prometheus server URL
+PROMETHEUS_URL="http://your-prometheus-server-url"
+
+# Prometheus query to get node CPU usage
+QUERY='100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)'
+
+# Function to execute Prometheus query
+execute_query() {
+    local query=$1
+    curl -s -G --data-urlencode "query=$query" "$PROMETHEUS_URL/api/v1/query" | jq '.data.result[] | {instance: .metric.instance, value: .value[1]}'
+}
+
+# Execute the query and get node CPU usage
+node_cpu_usage=$(execute_query "$QUERY")
+
+# Print the node CPU usage
+echo "Node CPU Usage:"
+echo "$node_cpu_usage"
