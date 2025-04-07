@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Define the inventory file
+INVENTORY_FILE="inventory.ini"
+
+# Get the list of EC2 instances with their tags
+instances=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,PrivateIpAddress,Tags]' --output json)
+
+# Clear the existing inventory file
+echo "" > $INVENTORY_FILE
+
+# Loop through the instances and update the inventory file
+for instance in $(echo "${instances}" | jq -c '.[][]'); do
+  instance_id=$(echo $instance | jq -r '.[0]')
+  private_ip=$(echo $instance | jq -r '.[1]')
+  tags=$(echo $instance | jq -r '.[2]')
+  
+  # Write the instance information to the inventory file
+  echo "[ec2_instances]" >> $INVENTORY_FILE
+  echo "$instance_id ansible_host=$private_ip" >> $INVENTORY_FILE
+  
+  # Loop through the tags and add them to the inventory file
+  for tag in $(echo "${tags}" | jq -c '.[]'); do
+    key=$(echo $tag | jq -r '.Key')
+    value=$(echo $tag | jq -r '.Value')
+    echo "$instance_id $key=$value" >> $INVENTORY_FILE
+  done
+  
+  echo "" >> $INVENTORY_FILE
+done
+
+echo "Ansible inventory updated successfully."
