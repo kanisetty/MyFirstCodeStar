@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Replace with your GitLab personal access token
+GITLAB_TOKEN="your_personal_access_token"
+# Replace with your GitLab instance URL (e.g., https://gitlab.com for GitLab.com)
+GITLAB_URL="https://gitlab.com"
+# Output file to store the group members
+OUTPUT_FILE="group_members.txt"
+
+# Clear the output file
+> "$OUTPUT_FILE"
+
+# Fetch all groups
+GROUPS=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "$GITLAB_URL/api/v4/groups" | jq -r '.[] | @base64')
+
+# Function to decode base64 and parse JSON
+function decode_json() {
+  echo "$1" | base64 --decode | jq -r "$2"
+}
+
+echo "Fetching group members..."
+
+# Iterate through each group
+for GROUP in $GROUPS; do
+  GROUP_NAME=$(decode_json "$GROUP" '.name')
+  GROUP_ID=$(decode_json "$GROUP" '.id')
+
+  echo "Group: $GROUP_NAME" >> "$OUTPUT_FILE"
+  echo "Members:" >> "$OUTPUT_FILE"
+
+  # Fetch members of the group
+  MEMBERS=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "$GITLAB_URL/api/v4/groups/$GROUP_ID/members" | jq -r '.[] | @base64')
+
+  if [ -z "$MEMBERS" ]; then
+    echo "  No members found." >> "$OUTPUT_FILE"
+  else
+    for MEMBER in $MEMBERS; do
+      MEMBER_NAME=$(decode_json "$MEMBER" '.name')
+      MEMBER_USERNAME=$(decode_json "$MEMBER" '.username')
+      echo "  - $MEMBER_NAME (@$MEMBER_USERNAME)" >> "$OUTPUT_FILE"
+    done
+  fi
+
+  echo "" >> "$OUTPUT_FILE"
+done
+
+echo "Group members saved to $OUTPUT_FILE."
