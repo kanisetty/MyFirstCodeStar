@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Set your GitLab personal access token here
+GITLAB_TOKEN="your_gitlab_token"
+# GitLab API URL (update this if you're using a self-hosted GitLab instance)
+GITLAB_API_URL="https://gitlab.com/api/v4"
+# Output file
+OUTPUT_FILE="gitlab_projects.txt"
+
+# Function to fetch all groups
+fetch_groups() {
+  curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "$GITLAB_API_URL/groups"
+}
+
+# Function to fetch projects for a specific group
+fetch_projects() {
+  local group_id=$1
+  curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "$GITLAB_API_URL/groups/$group_id/projects"
+}
+
+# Main script
+echo "Fetching GitLab projects..." > "$OUTPUT_FILE"
+groups=$(fetch_groups)
+
+# Loop through each group and fetch projects
+echo "$groups" | jq -c '.[]' | while read -r group; do
+  group_id=$(echo "$group" | jq -r '.id')
+  group_name=$(echo "$group" | jq -r '.name')
+
+  echo "Fetching projects for group: $group_name"
+  echo "Group: $group_name" >> "$OUTPUT_FILE"
+
+  projects=$(fetch_projects "$group_id")
+  echo "$projects" | jq -r '.[] | .name' >> "$OUTPUT_FILE"
+  echo "" >> "$OUTPUT_FILE" # Add a blank line between groups
+done
+
+echo "All projects have been saved to $OUTPUT_FILE."
