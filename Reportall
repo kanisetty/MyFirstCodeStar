@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Exit on error
+set -e
+
+# GitLab base URL and Personal Access Token
+GITLAB_URL="https://gitlab.com/api/v4"
+TOKEN="YOUR_PERSONAL_ACCESS_TOKEN"
+
+# Output file
+OUTPUT_FILE="gitlab_report.csv"
+
+# Function to fetch groups
+fetch_groups() {
+  curl --header "PRIVATE-TOKEN: $TOKEN" "$GITLAB_URL/groups?per_page=100" | jq -r '.[] | .id, .name'
+}
+
+# Function to fetch projects for a group
+fetch_projects() {
+  local group_id=$1
+  curl --header "PRIVATE-TOKEN: $TOKEN" "$GITLAB_URL/groups/$group_id/projects?per_page=100" | jq -r '.[] | .id, .name'
+}
+
+# Function to fetch users for a group
+fetch_users() {
+  local group_id=$1
+  curl --header "PRIVATE-TOKEN: $TOKEN" "$GITLAB_URL/groups/$group_id/members/all?per_page=100" | jq -r '.[] | .username'
+}
+
+# Write CSV headers
+echo "Group Name,Project Name,User Name" > "$OUTPUT_FILE"
+
+# Main script
+while IFS= read -r group_id && IFS= read -r group_name; do
+  echo "Processing group: $group_name"
+  projects=$(fetch_projects "$group_id")
+  users=$(fetch_users "$group_id")
+  
+  # Combine projects and users side by side
+  paste <(echo "$projects") <(echo "$users") | while IFS=$'\t' read -r project_name user_name; do
+    echo "$group_name,$project_name,$user_name" >> "$OUTPUT_FILE"
+  done
+done < <(fetch_groups)
+
+echo "Report generated: $OUTPUT_FILE"
